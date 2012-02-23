@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.summary = "grab contacts from Yahoo, AOL, Gmail, Hotmail, and Plaxo"
   s.description = "A universal interface to grab contact list information from various providers including Yahoo, AOL, Gmail, Hotmail, and Plaxo. Now supporting Ruby 1.9."
 
-  s.add_dependency "json", "~> 1.6.5"
+  s.add_dependency "json", "~> 1.5.1"
   s.add_dependency 'gdata_19', '~> 1.1.3'
   s.add_dependency 'nokogiri', '~> 1.5.0'
 
