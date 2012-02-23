@@ -17,12 +17,12 @@ class Contacts
         data, resp, cookies, forward, old_url = get(forward, cookies, old_url) + [forward]
       end
 
-      postdata =  "PPSX=%s&PwdPad=%s&login=%s&passwd=%s&LoginOptions=2&PPFT=%s" % [
+      postdata = "PPSX=%s&PwdPad=%s&login=%s&passwd=%s&LoginOptions=2&PPFT=%s" % [
         CGI.escape(data.split("><").grep(/PPSX/).first[/=\S+$/][2..-3]),
-        PWDPAD[0...(PWDPAD.length-@password.length)],
-        CGI.escape(login),
-        CGI.escape(password),
-        CGI.escape(data.split("><").grep(/PPFT/).first[/=\S+$/][2..-3])
+          PWDPAD[0...(PWDPAD.length-@password.length)],
+          CGI.escape(login),
+          CGI.escape(password),
+          CGI.escape(data.split("><").grep(/PPFT/).first[/=\S+$/][2..-3])
       ]
 
       form_url = data.split("><").grep(/form/).first.split[5][8..-2]
@@ -57,17 +57,30 @@ class Contacts
       end
     end
 
-    def contacts(options = {})
+    def contacts(options = { })
       if @contacts.nil? && connected?
         url = URI.parse(contact_list_url)
-        data, resp, cookies, forward = get(get_contact_list_url, @cookies )
+        data, resp, cookies, forward = get(get_contact_list_url, @cookies)
 
-        @contacts = CSV.parse(data, {:headers => true, :col_sep => data[7]}).map do |row|
-          name = ""
-          name = row["First Name"] if !row["First Name"].nil?
-          name << " #{row["Last Name"]}" if !row["Last Name"].nil?
-          [name, row["E-mail Address"] || ""]
-        end
+        headers, email, first_name, last_name = nil, nil, nil, nil
+
+        @contacts = CSV.parse(data).map do |row|
+          if headers.nil?
+            headers = row
+            email = headers.select { |header| header.match(/e-?mail/i) }.first
+            first_name = headers.select { |header| header.match(/last.*name/i) }.first
+            last_name = headers.select { |header| header.match(/first.*name/i) }.first
+          else
+            row_hash = { }
+            row.each_index do |i|
+              row_hash[headers[i]] = row[i]
+            end
+            name = ""
+            name = row_hash[first_name] if !row_hash[first_name].nil?
+            name << " #{row_hash[last_name]}" if !row_hash[last_name].nil?
+            [name, row_hash[email] || ""]
+          end
+        end.compact
       else
         @contacts || []
       end
