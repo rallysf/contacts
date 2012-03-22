@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = "contacts"
-  s.version = "1.2.10"
+  s.version = "1.2.11"
   s.platform = Gem::Platform::RUBY
   s.authors = ["Piryx Inc", "Lucas Carlson","Brad Imbierowicz", "Wong Liang Zan"]
   s.email = "andrew@rally.org"

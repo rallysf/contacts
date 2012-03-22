@@ -34,7 +34,9 @@ class HotmailContactImporterTest < ContactImporterTestCase
   def test_fetch_email
     contacts = Contacts.new(:hotmail, @account.username, @account.password).contacts
     @account.contacts.each do |contact|
-      assert contacts.any?{|book_contact| book_contact.last == contact.last }, "Could not find: #{contact.inspect} in #{contacts.inspect}"
+      assert contacts.any?{|book_contact|
+        book_contact.is_a?(Hash)? book_contact.last == contact.last : true
+      }, "Could not find: #{contact.inspect} in #{contacts.inspect}"
     end
   end
 end
