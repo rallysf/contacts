@@ -64,9 +64,8 @@ class Contacts
         contact_list_url = get_contact_list_url
         data, resp, cookies, forward = get(contact_list_url, @cookies )
 
-        #data.force_encoding('UTF-8') no worky in Ruby 1.8
-        data.delete!("\000")
-        @contacts = CSV.parse(data, {:headers => true, :col_sep => data[7]}).map do |row|
+        data.delete!("\000").delete!("\377").delete!("\376")
+        @contacts = FasterCSV.parse(data, :headers => true).map do |row|
           name = ""
           name = row["First Name"] if !row["First Name"].nil?
           name << " #{row["Last Name"]}" if !row["Last Name"].nil?
