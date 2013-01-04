@@ -2,14 +2,6 @@ require 'csv'
 require 'rubygems'
 require 'nokogiri'
 
-# Ruby 1.8 does not have force encoding, it should be a noop per http://stackoverflow.com/questions/4583924/string-force-encoding-in-ruby-1-8-7-or-rails-2-x
-# Please remove when Rally goes to Ruby 1.9
-class String
-  def force_encoding(enc)
-    self
-  end
-end
-
 class Contacts
   class Hotmail < Base
     DETECTED_DOMAINS = [ /hotmail/i, /live/i, /msn/i, /chaishop/i ]
@@ -72,7 +64,7 @@ class Contacts
         contact_list_url = get_contact_list_url
         data, resp, cookies, forward = get(contact_list_url, @cookies )
 
-        data.force_encoding('UTF-8')
+        #data.force_encoding('UTF-8') no worky in Ruby 1.8
         @contacts = CSV.parse(data, {:headers => true, :col_sep => data[7]}).map do |row|
           name = ""
           name = row["First Name"] if !row["First Name"].nil?
