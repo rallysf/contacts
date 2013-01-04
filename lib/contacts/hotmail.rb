@@ -2,6 +2,14 @@ require 'csv'
 require 'rubygems'
 require 'nokogiri'
 
+# Ruby 1.8 does not have force encoding, it should be a noop per http://stackoverflow.com/questions/4583924/string-force-encoding-in-ruby-1-8-7-or-rails-2-x
+# Please remove when Rally goes to Ruby 1.9
+class String
+  def force_encoding(enc)
+    self
+  end
+end
+
 class Contacts
   class Hotmail < Base
     DETECTED_DOMAINS = [ /hotmail/i, /live/i, /msn/i, /chaishop/i ]
