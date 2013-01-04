@@ -1,5 +1,6 @@
 class Contacts
   class Yahoo < Base
+    DETECTED_DOMAINS    = [ /yahoo/i, /ymail/i, /rocketmail/i ]    
     URL                 = "http://mail.yahoo.com/"
     LOGIN_URL           = "https://login.yahoo.com/config/login"
     ADDRESS_BOOK_URL    = "http://address.mail.yahoo.com/?.rand=430244936"
@@ -41,7 +42,7 @@ class Contacts
         # first, get the addressbook site with the new crumb parameter
         url = URI.parse(address_book_url)
         http = open_http(url)
-        resp, data = http.get("#{url.path}?#{url.query}",
+        resp = http.get("#{url.path}?#{url.query}",
           "Cookie" => @cookies
         )
 
@@ -49,12 +50,12 @@ class Contacts
           raise ConnectionError, self.class.const_get(:PROTOCOL_ERROR)
         end
 
-        crumb = data.to_s[/dotCrumb:   '(.*?)'/][13...-1]
+        crumb = resp.body.to_s[/dotCrumb:   '(.*?)'/][13...-1]
 
         # now proceed with the new ".crumb" parameter to get the csv data
         url = URI.parse(contact_list_url.sub("_crumb=crumb","_crumb=#{crumb}").sub("time", Time.now.to_f.to_s.sub(".","")[0...-2]))
         http = open_http(url)
-        resp, more_data = http.get("#{url.path}?#{url.query}",
+        resp = http.get("#{url.path}?#{url.query}",
           "Cookie" => @cookies,
           "X-Requested-With" => "XMLHttpRequest",
           "Referer" => address_book_url
@@ -64,13 +65,13 @@ class Contacts
         raise ConnectionError, self.class.const_get(:PROTOCOL_ERROR)
         end
 
-        if more_data =~ /"TotalABContacts":(\d+)/
+        if resp.body =~ /"TotalABContacts":(\d+)/
           total = $1.to_i
           ((total / 50.0).ceil).times do |i|
             # now proceed with the new ".crumb" parameter to get the csv data
             url = URI.parse(contact_list_url.sub("bucket=1","bucket=#{i}").sub("_crumb=crumb","_crumb=#{crumb}").sub("time", Time.now.to_f.to_s.sub(".","")[0...-2]))
             http = open_http(url)
-            resp, more_data = http.get("#{url.path}?#{url.query}",
+            resp = http.get("#{url.path}?#{url.query}",
               "Cookie" => @cookies,
               "X-Requested-With" => "XMLHttpRequest",
               "Referer" => address_book_url
@@ -80,7 +81,7 @@ class Contacts
             raise ConnectionError, self.class.const_get(:PROTOCOL_ERROR)
             end
 
-            parse more_data
+            parse resp.body
           end
         end
 

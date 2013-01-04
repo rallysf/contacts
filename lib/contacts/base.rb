@@ -11,6 +11,8 @@ class Contacts
   TYPES = {}
 
   class Base
+    DETECTED_DOMAINS = []
+
     def initialize(login, password, options={})
       @login = login
       @password = password
@@ -34,7 +36,7 @@ class Contacts
       if connected?
         url = URI.parse(contact_list_url)
         http = open_http(url)
-        resp, data = http.get("#{url.path}?#{url.query}",
+        resp = http.get("#{url.path}?#{url.query}",
           "Cookie" => @cookies
         )
 
@@ -42,7 +44,7 @@ class Contacts
           raise ConnectionError, self.class.const_get(:PROTOCOL_ERROR)
         end
 
-        parse(data, options)
+        parse(resp.body, options)
       end
     end
 
@@ -142,8 +144,8 @@ class Contacts
         "Content-Type" => 'application/x-www-form-urlencoded'
       }
       http_header.reject!{|k, v| k == 'Accept-Encoding'} if skip_gzip?
-      resp, data = http.post(url.path, postdata, http_header)
-      data = uncompress(resp, data)
+      resp = http.post(url.path, postdata, http_header)
+      data = uncompress(resp)
       cookies = parse_cookies(resp.response['set-cookie'], cookies)
       forward = resp.response['Location']
       forward ||= (data =~ /<meta.*?url='([^']+)'/ ? CGI.unescapeHTML($1) : nil)
@@ -156,25 +158,25 @@ class Contacts
     def get(url, cookies="", referer="")
       url = URI.parse(url)
       http = open_http(url)
-      resp, data = http.get("#{url.path}?#{url.query}",
+      resp = http.get("#{url.path}?#{url.query}",
         "User-Agent" => "Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en-US; rv:1.8.1) Gecko/20061010 Firefox/2.0",
         "Accept-Encoding" => "gzip",
         "Cookie" => cookies,
         "Referer" => referer
       )
-      data = uncompress(resp, data)
+      data = uncompress(resp)
       cookies = parse_cookies(resp.response['set-cookie'], cookies)
       forward = resp.response['Location']
-    if (not forward.nil?)
-      forward = forward.gsub(/ /, "%20")
-      if URI.parse(forward).host.nil?
-        forward = url.scheme.to_s + "://" + url.host.to_s + forward
-      end
+      forward.gsub!(' ', '%20') unless forward.nil?
+
+    if (not forward.nil?) && URI.parse(forward).host.nil?
+    forward = url.scheme.to_s + "://" + url.host.to_s + forward
     end
       return data, resp, cookies, forward
     end
 
-    def uncompress(resp, data)
+    def uncompress(resp)
+      data = resp.body
       case resp.response['content-encoding']
       when 'gzip'
         gz = Zlib::GzipReader.new(StringIO.new(data))
@@ -212,13 +214,36 @@ class Contacts
     end
   end
 
-  def self.guess(login, password, options={})
-    TYPES.inject([]) do |a, t|
-      begin
-        a + t[1].new(login, password, options).contacts
-      rescue AuthenticationError
-        a
-      end
-    end.uniq
+  def self.get_email_domain(email)
+    name, domain = email.split('@')
+    domain
+  end
+
+  def self.guess_importer(email, options={})
+    if keys = options[:types]
+      types = TYPES.select{|k, v| keys.include?(k)}
+    end    
+    types ||= TYPES
+
+    email_domain = get_email_domain(email)
+
+    types.values.find do |klass|
+      klass::DETECTED_DOMAINS.any? { |m| email_domain.to_s.match(m) }
+    end
+  end
+
+  def self.guess(email, password, options={})
+    klass = guess_importer(email, options)
+
+    return if klass.nil?
+
+    a = []
+
+    begin
+      a = klass.new(email, password, options).contacts
+    rescue AuthenticationError
+    end
+
+    return a
   end
 end

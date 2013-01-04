@@ -2,8 +2,9 @@ require 'csv'
 
 class Contacts
   class Mailru < Base
+    DETECTED_DOMAINS = [ /list\.ru/i, /inbox\.ru/i, /bk\.ru/i, /mail\.ru/i ]
     LOGIN_URL = "https://auth.mail.ru/cgi-bin/auth"
-    ADDRESS_BOOK_URL = "http://win.mail.ru/cgi-bin/abexport/addressbook.csv"
+    ADDRESS_BOOK_URL = "http://e.mail.ru/cgi-bin/abexport/addressbook.csv"
 
     attr_accessor :cookies
 

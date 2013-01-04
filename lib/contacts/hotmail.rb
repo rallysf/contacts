@@ -4,6 +4,7 @@ require 'nokogiri'
 
 class Contacts
   class Hotmail < Base
+    DETECTED_DOMAINS = [ /hotmail/i, /live/i, /msn/i, /chaishop/i ]
     URL = "https://login.live.com/login.srf?id=2"
     CONTACT_LIST_URL = "https://mail.live.com/mail/GetContacts.aspx"
     PROTOCOL_ERROR = "Hotmail has changed its protocols, please upgrade this library first. If that does not work, report this error at http://rubyforge.org/forum/?group_id=2693"
@@ -17,12 +18,12 @@ class Contacts
         data, resp, cookies, forward, old_url = get(forward, cookies, old_url) + [forward]
       end
 
-      postdata = "PPSX=%s&PwdPad=%s&login=%s&passwd=%s&LoginOptions=2&PPFT=%s" % [
+      postdata =  "PPSX=%s&PwdPad=%s&login=%s&passwd=%s&LoginOptions=2&PPFT=%s" % [
         CGI.escape(data.split("><").grep(/PPSX/).first[/=\S+$/][2..-3]),
-          PWDPAD[0...(PWDPAD.length-@password.length)],
-          CGI.escape(login),
-          CGI.escape(password),
-          CGI.escape(data.split("><").grep(/PPFT/).first[/=\S+$/][2..-3])
+        PWDPAD[0...(PWDPAD.length-@password.length)],
+        CGI.escape(login),
+        CGI.escape(password),
+        CGI.escape(data.split("><").grep(/PPFT/).first[/=\S+$/][2..-3])
       ]
 
       form_url = data.split("><").grep(/form/).first.split[5][8..-2]
@@ -57,30 +58,19 @@ class Contacts
       end
     end
 
-    def contacts(options = { })
+    def contacts(options = {})
       if @contacts.nil? && connected?
         url = URI.parse(contact_list_url)
-        data, resp, cookies, forward = get(get_contact_list_url, @cookies)
+        contact_list_url = get_contact_list_url
+        data, resp, cookies, forward = get(contact_list_url, @cookies )
 
-        headers, email, first_name, last_name = nil, nil, nil, nil
-
-        @contacts = CSV.parse(data).map do |row|
-          if headers.nil?
-            headers = row
-            email = headers.select { |header| header.match(/e-?mail/i) }.first
-            first_name = headers.select { |header| header.match(/last.*name/i) }.first
-            last_name = headers.select { |header| header.match(/first.*name/i) }.first
-          else
-            row_hash = { }
-            row.each_index do |i|
-              row_hash[headers[i]] = row[i]
-            end
-            name = ""
-            name = row_hash[first_name] if !row_hash[first_name].nil?
-            name << " #{row_hash[last_name]}" if !row_hash[last_name].nil?
-            [name, row_hash[email] || ""]
-          end
-        end.compact
+        data.force_encoding('UTF-8')
+        @contacts = CSV.parse(data, {:headers => true, :col_sep => data[7]}).map do |row|
+          name = ""
+          name = row["First Name"] if !row["First Name"].nil?
+          name << " #{row["Last Name"]}" if !row["Last Name"].nil?
+          [name, row["E-mail Address"] || ""]
+        end
       else
         @contacts || []
       end
@@ -92,8 +82,8 @@ class Contacts
 
     # the contacts url is dynamic
     # luckily it tells us where to find it
-    def get_contact_list_url
-      data = get(CONTACT_LIST_URL, @cookies)[0]
+    def get_contact_list_url(url=CONTACT_LIST_URL)
+      data = get(url, @cookies)[0]
       html_doc = Nokogiri::HTML(data)
       html_doc.xpath("//a")[0]["href"]
     end
